@@ -16,7 +16,17 @@ if (!isset($pageDescription)) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
     <link rel="stylesheet" href="/public/style.css">
+    <?php
+    $inlineStyleCandidates = [__DIR__ . '/../style.css', __DIR__ . '/../public/style.css'];
+    foreach ($inlineStyleCandidates as $candidate) {
+        if (is_file($candidate)) {
+            echo '<style>' . file_get_contents($candidate) . '</style>';
+            break;
+        }
+    }
+    ?>
 </head>
 <body class="theme-dark-soft">
 <header class="header">

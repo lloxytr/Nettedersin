@@ -56,3 +56,7 @@ Aç: `http://127.0.0.1:8000/index.php`
 - `config/database.php` dosyası hassastır; herkese açık dizinde bırakmayın.
 - Kurulum tamamlanınca `setup/install.php` dosyasını mutlaka kaldırın.
 - Canlı ortamda güçlü şifre ve gerekirse ayrı DB kullanıcısı önerilir.
+
+## Görünüm Sorunu İçin Not
+- Bazı hostinglerde `/public/style.css` geç yüklenebiliyor. Bu nedenle tema dosyası hem `style.css` kökte hem de `public/style.css` altında tutulur.
+- Ayrıca `partials/layout.php` içinde CSS inline fallback vardır; dosya yolu sorunlarında bile tasarım bozulmaz.
