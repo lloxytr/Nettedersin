@@ -1,62 +1,136 @@
-# Nettedersin (PHP - Markahost Uyumlu, Tam Kapsam İskelet)
+# Nettedersin LMS (PHP 8 + MySQL, Terminal Gerektirmez)
 
-Bu proje, Markahost Eco Linux (PHP hosting) için hazırlanmış **premium + hafif dark** görünümlü online eğitim platformu iskeletidir.
+Bu repo, **Markahost EcoLinux shared hosting** için hazırlanmış, FTP ile yüklenip web kurulum sihirbazı ile çalışan bir LMS'tir.
 
-## Terminal Yoksa Kurulum (Sizdeki Durum)
-### Yöntem A — Web Kurulum Sihirbazı (Önerilen)
-1. Dosyaları hostinge yükleyin.
-2. Tarayıcıda şu sayfayı açın:
-   - `https://alanadiniz.com/setup/install.php`
-3. DB bilgilerini girin (varsayılanlar formda dolu gelir):
-   - DB Name: `nettepfg_db`
-   - DB User: `nettepfg_user`
-   - DB Pass: `Sifre1234.`
-4. "Kurulumu Başlat" butonuna basın.
-5. Kurulum sonrası güvenlik için `setup/install.php` dosyasını silin veya erişimi engelleyin.
+## Özellikler (Canlı Çalışan)
 
-### Yöntem B — cPanel / phpMyAdmin
-1. phpMyAdmin açın.
-2. `setup/schema.sql` dosyasını import edin.
-3. Sonra `setup/seed.sql` dosyasını import edin.
+### 1) Auth + Güvenlik
+- Kayıt / Giriş / Çıkış
+- Şifre sıfırlama (token üretim + yeni şifre belirleme)
+- Roller: `student`, `teacher`, `admin`
+- RBAC koruması (`require_role`)
+- CSRF token tüm kritik formlarda
+- Login brute-force koruma (IP başına 15 dk pencerede limit)
+- Şifre hash: bcrypt (`password_hash`)
 
-## Mimari
-- `index.php`: Ana landing + premium pazarlama akışı
-- `pages/`: Öğrenci / öğretmen / admin dashboard ve alt modüller
-- `partials/`: Ortak layout, component renderer, veri listeleri, page shell
-- `lib/`: DB bağlantısı (`Database.php`) + veri servisleri (`Repository.php`)
-- `setup/`: `schema.sql`, `seed.sql`, `install.php`
-- `public/style.css`: hafif dark premium tasarım sistemi
+### 2) Öğrenci Paneli
+- Dashboard: ilerleme, son ders, son test skoru
+- Kurs listesi ve kurs detay (Kurs > Bölüm > Ders)
+- Ders sayfası:
+  - HTML5 video
+  - Hız seçimi
+  - Kaldığı yerden devam (progress save)
+  - Tamamlandı işareti
+  - PDF ekleri
+  - Yorum/Soru (moderasyonlu)
+- Test çözme:
+  - Çoktan seçmeli
+  - Otomatik puanlama
+  - Sonuç ekranı
+  - Yanlış defteri kaydı
+- Paket satın alma:
+  - Manuel/Test ödeme siparişi
+  - Sipariş geçmişi
 
-## Modüller
-### Öğrenci
-- Dersler (video + PDF + yorum/soru)
-- Test/deneme + yanlış defteri
-- Motivasyon + hedef + rozet
-- Satın alma + paketler
+### 3) Öğretmen Paneli
+- Kurs oluşturma (admin onay akışı)
+- Bölüm ekleme
+- Soru bankası CRUD başlangıcı (ekleme + listeleme)
+- Test oluşturma ve soru bağlama
 
-### Öğretmen
-- İçerik yönetimi
-- Sınav/test yönetimi
-- Öğrenci analitiği
-- İletişim ve duyuru
+### 4) Admin Paneli
+- İçerik onayı (yayınla/taslağa al)
+- Kullanıcı yönetimi (aktif/dondur)
+- Sipariş yönetimi
+- Manuel ödeme onayı (`pending -> paid`)
+- Audit log kayıtları
 
-### Admin
-- Kullanıcı/rol
-- Ödeme/paket
-- Raporlama
-- Güvenlik
+### 5) SEO + Performans
+- Clean URL (rewrite):
+  - `/kurslar`
+  - `/kurs/<slug>`
+  - `/ogretmen/<slug>`
+  - `/blog/<slug>`
+- `robots.txt` dinamik
+- `sitemap.xml` dinamik
+- Course + Person schema.org JSON-LD
+- Tailwind CDN (build yok)
 
-## Lokal Test (İstersen)
-```bash
-php -S 127.0.0.1:8000
-```
-Aç: `http://127.0.0.1:8000/index.php`
+---
 
-## Güvenlik Notu
-- `config/database.php` dosyası hassastır; herkese açık dizinde bırakmayın.
-- Kurulum tamamlanınca `setup/install.php` dosyasını mutlaka kaldırın.
-- Canlı ortamda güçlü şifre ve gerekirse ayrı DB kullanıcısı önerilir.
+## Kurulum (Terminal YOK Senaryosu)
 
-## Görünüm Sorunu İçin Not
-- Bazı hostinglerde `/public/style.css` geç yüklenebiliyor. Bu nedenle tema dosyası hem `style.css` kökte hem de `public/style.css` altında tutulur.
-- Ayrıca `partials/layout.php` içinde CSS inline fallback vardır; dosya yolu sorunlarında bile tasarım bozulmaz.
+### Adım 1) FTP ile dosyaları yükle
+- Repo içeriğini `public_html` altına yükle.
+- `.htaccess` dosyasının geldiğinden emin ol.
+
+### Adım 2) Kurulum sihirbazını aç
+- `https://alanadiniz.com/setup/install.php`
+
+### Adım 3) DB bilgilerini gir
+- DB Name: `nettepfg_db`
+- DB User: `nettepfg_user`
+- DB Pass: `Sifre1234.`
+- Admin adı/e-posta/şifre belirle
+
+### Adım 4) Kurulumu çalıştır
+Sihirbaz:
+- DB bağlantısını test eder
+- Şemayı ve seed'i otomatik kurar
+- `config/config.php` üretir
+- Admin hesabı oluşturur
+- `uploads/` yazılabilirlik kontrolü yapar
+
+### Adım 5) Güvenlik
+- Kurulumdan sonra `setup/install.php` dosyasını silin veya erişimini engelleyin.
+
+---
+
+## Ödeme Akışı
+
+### Çalışan Mod (zorunlu)
+- **Manuel/Test ödeme modu** aktif.
+- Öğrenci sipariş oluşturur (`pending`)
+- Admin panelinden "Manuel Paid" ile onaylar
+- Sistem idempotent çalışır: aynı sipariş ikinci kez paid olmaz
+- Paid olunca kullanıcıya plan erişimi açılır
+
+### Adapter Hazırlığı
+- `app/services/PaymentService.php` içinde iyzico payload adapter iskeleti mevcut.
+
+---
+
+## Klasör Yapısı
+
+- `index.php` → Front controller (routing)
+- `app/bootstrap.php` → app init
+- `app/helpers.php` → csrf/rbac/render yardımcıları
+- `app/services/AuthService.php` → auth, login rate-limit, reset
+- `app/services/PaymentService.php` → manuel ödeme + adapter
+- `app/views/*` → tüm ekranlar
+- `lib/Database.php` → PDO
+- `lib/Repository.php` → DB sorguları
+- `setup/install.php` → web installer
+- `setup/schema.sql`, `setup/seed.sql` → şema ve başlangıç verisi
+- `uploads/` → video/pdf yükleme klasörü
+
+---
+
+## Kabul Testleri (Checklist)
+
+1. Kayıt/Giriş/Şifre sıfırlama
+2. Rol bazlı erişim (student/teacher/admin)
+3. Öğretmen kurs ekler -> admin yayınlar -> öğrenci kursu görür
+4. Öğrenci test çözer -> sonuç ekranı oluşur
+5. Öğrenci sipariş açar -> admin manuel paid yapar -> erişim açılır
+6. CSRF token olmadan POST başarısız olur
+7. Login brute-force limiti devreye girer
+8. XSS için tüm çıktı `htmlspecialchars` ile escape edilir
+
+---
+
+## Not
+Bu sürüm shared hosting kısıtlarına göre tasarlandı:
+- Node/Yarn/Composer build zorunluluğu yok
+- Terminal zorunluluğu yok
+- Web installer ile kurulum tamamlanır

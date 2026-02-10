@@ -4,22 +4,21 @@ class Database
 {
     private static ?PDO $pdo = null;
 
-    public static function connection(): PDO
+    public static function connection(array $dbConfig): PDO
     {
         if (self::$pdo instanceof PDO) {
             return self::$pdo;
         }
 
-        $config = require __DIR__ . '/../config/database.php';
         $dsn = sprintf(
             'mysql:host=%s;port=%s;dbname=%s;charset=%s',
-            $config['host'],
-            $config['port'],
-            $config['database'],
-            $config['charset']
+            $dbConfig['host'],
+            $dbConfig['port'],
+            $dbConfig['database'],
+            $dbConfig['charset'] ?? 'utf8mb4'
         );
 
-        self::$pdo = new PDO($dsn, $config['username'], $config['password'], [
+        self::$pdo = new PDO($dsn, $dbConfig['username'], $dbConfig['password'], [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,

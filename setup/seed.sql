@@ -1,9 +1,5 @@
-INSERT INTO users (role, full_name, email, password_hash) VALUES
-('admin', 'Nettedersin Admin', 'admin@nettedersin.com', '$2y$10$examplehash'),
-('teacher', 'Ayşe Öğretmen', 'ayse@nettedersin.com', '$2y$10$examplehash'),
-('student', 'Mehmet Öğrenci', 'mehmet@nettedersin.com', '$2y$10$examplehash');
-
-INSERT INTO packages (name, billing_type, price, trial_days) VALUES
-('Starter', 'monthly', 299.00, 7),
-('Pro', 'monthly', 599.00, 7),
-('Elite', 'monthly', 999.00, 14);
+INSERT INTO plans (name, price, duration_days, created_at) VALUES
+('Starter', 299.00, 30, NOW()),
+('Pro', 599.00, 30, NOW()),
+('Elite', 999.00, 30, NOW())
+ON DUPLICATE KEY UPDATE price = VALUES(price);

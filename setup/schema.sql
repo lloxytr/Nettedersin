@@ -1,215 +1,245 @@
 CREATE TABLE IF NOT EXISTS users (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  role ENUM('student','teacher','admin') NOT NULL,
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   full_name VARCHAR(120) NOT NULL,
-  email VARCHAR(180) UNIQUE NOT NULL,
+  email VARCHAR(180) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  is_active TINYINT(1) DEFAULT 1,
+  role ENUM('student','teacher','admin') NOT NULL DEFAULT 'student',
+  status ENUM('active','frozen') NOT NULL DEFAULT 'active',
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id VARCHAR(128) PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  ip_address VARCHAR(64),
+  user_agent VARCHAR(255),
+  last_activity DATETIME NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS roles (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  slug VARCHAR(50) UNIQUE NOT NULL,
+  title VARCHAR(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO roles (id, slug, title) VALUES
+(1,'student','Öğrenci'),(2,'teacher','Öğretmen'),(3,'admin','Admin');
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  ip_address VARCHAR(64) NOT NULL,
+  email VARCHAR(180) NOT NULL,
+  attempted_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  token VARCHAR(120) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  created_at DATETIME NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS courses (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  teacher_id BIGINT NOT NULL,
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  teacher_id BIGINT UNSIGNED NOT NULL,
   title VARCHAR(255) NOT NULL,
   slug VARCHAR(255) UNIQUE NOT NULL,
   description TEXT,
-  status ENUM('draft','review','published','archived') DEFAULT 'draft',
+  status ENUM('draft','review','published') DEFAULT 'draft',
+  meta_title VARCHAR(255) NULL,
+  meta_description VARCHAR(255) NULL,
   published_at DATETIME NULL,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (teacher_id) REFERENCES users(id)
-);
+  FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS sections (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  course_id BIGINT UNSIGNED NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  position INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS lessons (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  course_id BIGINT NOT NULL,
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  section_id BIGINT UNSIGNED NOT NULL,
   title VARCHAR(255) NOT NULL,
-  video_url TEXT,
-  pdf_url TEXT,
-  order_no INT DEFAULT 0,
-  is_preview TINYINT(1) DEFAULT 0,
+  video_path VARCHAR(255) NULL,
+  pdf_path VARCHAR(255) NULL,
+  content_html MEDIUMTEXT NULL,
+  position INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (course_id) REFERENCES courses(id)
-);
+  FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS enrollments (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  student_id BIGINT NOT NULL,
-  course_id BIGINT NOT NULL,
-  progress_percent DECIMAL(5,2) DEFAULT 0,
-  completed_at DATETIME NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_enroll (student_id, course_id),
-  FOREIGN KEY (student_id) REFERENCES users(id),
-  FOREIGN KEY (course_id) REFERENCES courses(id)
-);
+CREATE TABLE IF NOT EXISTS lesson_progress (
+  user_id BIGINT UNSIGNED NOT NULL,
+  lesson_id BIGINT UNSIGNED NOT NULL,
+  watched_seconds INT DEFAULT 0,
+  completed TINYINT(1) DEFAULT 0,
+  updated_at DATETIME NOT NULL,
+  PRIMARY KEY (user_id, lesson_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS tests (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  course_id BIGINT NOT NULL,
-  title VARCHAR(255) NOT NULL,
-  duration_minutes INT DEFAULT 30,
-  is_mock_exam TINYINT(1) DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (course_id) REFERENCES courses(id)
-);
+CREATE TABLE IF NOT EXISTS lesson_comments (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  lesson_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  comment_body TEXT NOT NULL,
+  status ENUM('pending','approved','rejected') DEFAULT 'pending',
+  created_at DATETIME NOT NULL,
+  FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS questions (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  test_id BIGINT NOT NULL,
-  content TEXT NOT NULL,
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  teacher_id BIGINT UNSIGNED NOT NULL,
+  question_text TEXT NOT NULL,
   option_a VARCHAR(255) NOT NULL,
   option_b VARCHAR(255) NOT NULL,
   option_c VARCHAR(255) NOT NULL,
   option_d VARCHAR(255) NOT NULL,
   correct_option CHAR(1) NOT NULL,
-  solution_video_url TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (test_id) REFERENCES tests(id)
-);
+  topic VARCHAR(120) NULL,
+  solution_video_url VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL,
+  FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS attempts (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  test_id BIGINT NOT NULL,
-  student_id BIGINT NOT NULL,
-  score DECIMAL(5,2) DEFAULT 0,
-  correct_count INT DEFAULT 0,
-  wrong_count INT DEFAULT 0,
-  started_at DATETIME,
-  finished_at DATETIME,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (test_id) REFERENCES tests(id),
-  FOREIGN KEY (student_id) REFERENCES users(id)
-);
+CREATE TABLE IF NOT EXISTS tests (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  course_id BIGINT UNSIGNED NOT NULL,
+  teacher_id BIGINT UNSIGNED NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  duration_seconds INT DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+  FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS test_questions (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  test_id BIGINT UNSIGNED NOT NULL,
+  question_id BIGINT UNSIGNED NOT NULL,
+  FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE,
+  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS test_attempts (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  test_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  score DECIMAL(5,2) NOT NULL DEFAULT 0,
+  correct_count INT NOT NULL DEFAULT 0,
+  wrong_count INT NOT NULL DEFAULT 0,
+  duration_seconds INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS test_answers (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  attempt_id BIGINT UNSIGNED NOT NULL,
+  question_id BIGINT UNSIGNED NOT NULL,
+  selected_option CHAR(1) NULL,
+  is_correct TINYINT(1) NOT NULL DEFAULT 0,
+  FOREIGN KEY (attempt_id) REFERENCES test_attempts(id) ON DELETE CASCADE,
+  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS wrong_notebook (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  student_id BIGINT NOT NULL,
-  question_id BIGINT NOT NULL,
-  note TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (student_id) REFERENCES users(id),
-  FOREIGN KEY (question_id) REFERENCES questions(id)
-);
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  question_id BIGINT UNSIGNED NOT NULL,
+  note TEXT NULL,
+  created_at DATETIME NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS live_classes (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  teacher_id BIGINT NOT NULL,
-  course_id BIGINT NOT NULL,
-  title VARCHAR(255) NOT NULL,
-  provider ENUM('zoom','jitsi','agora') DEFAULT 'zoom',
-  meeting_url TEXT,
-  starts_at DATETIME,
-  ends_at DATETIME,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (teacher_id) REFERENCES users(id),
-  FOREIGN KEY (course_id) REFERENCES courses(id)
-);
-
-CREATE TABLE IF NOT EXISTS notifications (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  user_id BIGINT NOT NULL,
-  channel ENUM('in_app','email') NOT NULL,
-  title VARCHAR(255) NOT NULL,
-  body TEXT,
-  is_read TINYINT(1) DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
-
-CREATE TABLE IF NOT EXISTS packages (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  name VARCHAR(120) NOT NULL,
-  billing_type ENUM('monthly','yearly','lifetime') NOT NULL,
+CREATE TABLE IF NOT EXISTS plans (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
   price DECIMAL(10,2) NOT NULL,
-  trial_days INT DEFAULT 0,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS subscriptions (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  user_id BIGINT NOT NULL,
-  package_id BIGINT NOT NULL,
-  status ENUM('trial','active','cancelled','expired') DEFAULT 'trial',
-  starts_at DATETIME,
-  ends_at DATETIME,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id),
-  FOREIGN KEY (package_id) REFERENCES packages(id)
-);
-
-CREATE TABLE IF NOT EXISTS invoices (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  user_id BIGINT NOT NULL,
-  subscription_id BIGINT,
-  provider ENUM('iyzico','paytr') NOT NULL,
-  invoice_no VARCHAR(100) UNIQUE,
-  amount DECIMAL(10,2),
-  status ENUM('paid','pending','refunded','failed') DEFAULT 'pending',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id),
-  FOREIGN KEY (subscription_id) REFERENCES subscriptions(id)
-);
+  duration_days INT NOT NULL,
+  created_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS coupons (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  code VARCHAR(50) UNIQUE,
-  discount_type ENUM('percent','fixed') NOT NULL,
-  discount_value DECIMAL(10,2) NOT NULL,
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(60) NOT NULL UNIQUE,
+  type ENUM('percent','fixed') NOT NULL,
+  value DECIMAL(10,2) NOT NULL,
   usage_limit INT DEFAULT 0,
+  used_count INT DEFAULT 0,
   expires_at DATETIME NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+  created_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS forum_topics (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  user_id BIGINT NOT NULL,
-  title VARCHAR(255) NOT NULL,
-  body TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
+CREATE TABLE IF NOT EXISTS orders (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  plan_id BIGINT UNSIGNED NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  status ENUM('pending','paid','failed','refunded','cancelled') DEFAULT 'pending',
+  payment_method VARCHAR(50) NOT NULL DEFAULT 'manual',
+  idempotency_key VARCHAR(80) NOT NULL UNIQUE,
+  paid_at DATETIME NULL,
+  created_at DATETIME NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS forum_replies (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  topic_id BIGINT NOT NULL,
-  user_id BIGINT NOT NULL,
-  body TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (topic_id) REFERENCES forum_topics(id),
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
+CREATE TABLE IF NOT EXISTS payments (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id BIGINT UNSIGNED NOT NULL,
+  provider VARCHAR(50) NOT NULL,
+  provider_reference VARCHAR(120) NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  status VARCHAR(30) NOT NULL,
+  created_at DATETIME NOT NULL,
+  UNIQUE KEY uk_provider_ref (provider, provider_reference),
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS teacher_questions (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  student_id BIGINT NOT NULL,
-  teacher_id BIGINT NOT NULL,
-  course_id BIGINT,
-  question TEXT NOT NULL,
-  status ENUM('open','answered','closed') DEFAULT 'open',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (student_id) REFERENCES users(id),
-  FOREIGN KEY (teacher_id) REFERENCES users(id),
-  FOREIGN KEY (course_id) REFERENCES courses(id)
-);
+CREATE TABLE IF NOT EXISTS user_plan_access (
+  user_id BIGINT UNSIGNED NOT NULL,
+  plan_id BIGINT UNSIGNED NOT NULL,
+  starts_at DATETIME NOT NULL,
+  ends_at DATETIME NOT NULL,
+  created_at DATETIME NOT NULL,
+  PRIMARY KEY (user_id, plan_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE IF NOT EXISTS device_sessions (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  user_id BIGINT NOT NULL,
-  device_hash VARCHAR(255) NOT NULL,
-  ip_address VARCHAR(64),
-  is_active TINYINT(1) DEFAULT 1,
-  last_seen_at DATETIME,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
+CREATE TABLE IF NOT EXISTS plan_course_access (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  plan_id BIGINT UNSIGNED NOT NULL,
+  course_id BIGINT UNSIGNED NOT NULL,
+  UNIQUE KEY uq_plan_course(plan_id, course_id),
+  FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS audit_logs (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  actor_user_id BIGINT,
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  actor_user_id BIGINT UNSIGNED NULL,
   action VARCHAR(255) NOT NULL,
-  context JSON,
+  context_json JSON NULL,
   ip_address VARCHAR(64),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (actor_user_id) REFERENCES users(id)
-);
+  created_at DATETIME NOT NULL,
+  FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

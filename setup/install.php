@@ -5,119 +5,85 @@ $defaults = [
     'database' => 'nettepfg_db',
     'username' => 'nettepfg_user',
     'password' => 'Sifre1234.',
+    'base_url' => ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'),
+    'admin_name' => 'Site Admin',
+    'admin_email' => 'admin@nettedersin.com',
+    'admin_password' => 'Admin12345!'
 ];
-
 $input = $defaults;
 $status = null;
-$messages = [];
+$message = '';
+$uploadsOk = is_dir(__DIR__ . '/../uploads') && is_writable(__DIR__ . '/../uploads');
 
-function splitSqlStatements(string $sql): array
-{
+function splitSql(string $sql): array {
     $clean = preg_replace('/^\s*--.*$/m', '', $sql);
-    $chunks = array_filter(array_map('trim', explode(';', (string)$clean)));
-    return array_values($chunks);
+    return array_values(array_filter(array_map('trim', explode(';', (string)$clean))));
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    foreach (array_keys($defaults) as $key) {
-        $input[$key] = trim((string)($_POST[$key] ?? ''));
-    }
+    foreach ($defaults as $k => $v) { $input[$k] = trim((string)($_POST[$k] ?? '')); }
 
     try {
         $dsn = sprintf('mysql:host=%s;port=%s;charset=utf8mb4', $input['host'], $input['port']);
-        $pdo = new PDO($dsn, $input['username'], $input['password'], [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
+        $pdo = new PDO($dsn, $input['username'], $input['password'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+        $dbName = str_replace('`', '', $input['database']);
+        $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        $pdo->exec("USE `{$dbName}`");
 
-        $pdo->exec('CREATE DATABASE IF NOT EXISTS `' . str_replace('`', '', $input['database']) . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
-        $pdo->exec('USE `' . str_replace('`', '', $input['database']) . '`');
+        foreach (splitSql((string)file_get_contents(__DIR__ . '/schema.sql')) as $stmt) { $pdo->exec($stmt); }
+        foreach (splitSql((string)file_get_contents(__DIR__ . '/seed.sql')) as $stmt) { $pdo->exec($stmt); }
 
-        $schemaPath = __DIR__ . '/schema.sql';
-        $seedPath = __DIR__ . '/seed.sql';
+        $hash = password_hash($input['admin_password'], PASSWORD_BCRYPT);
+        $stmt = $pdo->prepare('INSERT INTO users (full_name, email, password_hash, role, status, created_at) VALUES (:n,:e,:p,"admin","active",NOW()) ON DUPLICATE KEY UPDATE full_name=VALUES(full_name), password_hash=VALUES(password_hash), role="admin"');
+        $stmt->execute(['n' => $input['admin_name'], 'e' => strtolower($input['admin_email']), 'p' => $hash]);
 
-        foreach (splitSqlStatements((string)file_get_contents($schemaPath)) as $statement) {
-            $pdo->exec($statement);
-        }
-
-        foreach (splitSqlStatements((string)file_get_contents($seedPath)) as $statement) {
-            $pdo->exec($statement);
-        }
-
-        $configContent = "<?php\nreturn [\n"
-            . "    'host' => getenv('DB_HOST') ?: '" . addslashes($input['host']) . "',\n"
-            . "    'port' => getenv('DB_PORT') ?: '" . addslashes($input['port']) . "',\n"
-            . "    'database' => getenv('DB_NAME') ?: '" . addslashes($input['database']) . "',\n"
-            . "    'username' => getenv('DB_USER') ?: '" . addslashes($input['username']) . "',\n"
-            . "    'password' => getenv('DB_PASS') ?: '" . addslashes($input['password']) . "',\n"
+        $cfg = "<?php\nreturn [\n"
+            . "  'app_name' => 'Nettedersin',\n"
+            . "  'base_url' => '" . addslashes($input['base_url']) . "',\n"
+            . "  'db' => [\n"
+            . "    'host' => '" . addslashes($input['host']) . "',\n"
+            . "    'port' => '" . addslashes($input['port']) . "',\n"
+            . "    'database' => '" . addslashes($input['database']) . "',\n"
+            . "    'username' => '" . addslashes($input['username']) . "',\n"
+            . "    'password' => '" . addslashes($input['password']) . "',\n"
             . "    'charset' => 'utf8mb4'\n"
+            . "  ],\n"
+            . "  'security' => [\n"
+            . "    'session_name' => 'nettedersin_session',\n"
+            . "    'csrf_key' => '" . bin2hex(random_bytes(16)) . "'\n"
+            . "  ],\n"
+            . "  'payment' => [\n"
+            . "    'mode' => 'manual',\n"
+            . "    'provider' => 'iyzico'\n"
+            . "  ]\n"
             . "];\n";
 
-        file_put_contents(__DIR__ . '/../config/database.php', $configContent);
+        file_put_contents(__DIR__ . '/../config/config.php', $cfg);
+
+        if (!is_dir(__DIR__ . '/../uploads')) {
+            @mkdir(__DIR__ . '/../uploads', 0775, true);
+        }
 
         $status = 'success';
-        $messages[] = 'Kurulum tamamlandı. Veritabanı tabloları oluşturuldu ve config dosyası güncellendi.';
-        $messages[] = 'Güvenlik için kurulum sonrası setup/install.php dosyasını silin veya erişimi kapatın.';
+        $message = 'Kurulum tamamlandı. Giriş: /giris (admin e-postanız ve şifrenizle). Güvenlik için setup/install.php dosyasını kaldırın.';
     } catch (Throwable $e) {
         $status = 'error';
-        $messages[] = 'Kurulum başarısız: ' . $e->getMessage();
+        $message = $e->getMessage();
     }
 }
 ?>
-<!doctype html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nettedersin Kurulum Sihirbazı</title>
-    <style>
-        body { font-family: Inter, Arial, sans-serif; background: #0b1220; color: #e2e8f0; margin: 0; }
-        .wrap { max-width: 760px; margin: 2rem auto; padding: 1.2rem; }
-        .card { background: #111c32; border: 1px solid #223557; border-radius: 14px; padding: 1.2rem; }
-        h1 { margin-top: 0; }
-        label { display: block; margin-top: .75rem; font-weight: 600; }
-        input { width: 100%; padding: .65rem .7rem; border-radius: 8px; border: 1px solid #375179; background: #0f172a; color: #e2e8f0; }
-        button { margin-top: 1rem; background: #3b82f6; color: #fff; border: 0; padding: .7rem 1rem; border-radius: 8px; font-weight: 700; }
-        .msg { margin: .8rem 0; padding: .7rem .8rem; border-radius: 8px; }
-        .success { background: #12331f; border: 1px solid #2f7d47; }
-        .error { background: #3a1717; border: 1px solid #7a2b2b; }
-        code { background: #0b172c; padding: .1rem .35rem; border-radius: 4px; }
-    </style>
-</head>
-<body>
-<div class="wrap">
-    <div class="card">
-        <h1>Nettedersin Kurulum (Terminal Yoksa)</h1>
-        <p>Bu ekran, terminal olmadan MySQL tablolarını kurar ve <code>config/database.php</code> dosyasını günceller.</p>
-
-        <?php if ($status): ?>
-            <div class="msg <?= $status === 'success' ? 'success' : 'error' ?>">
-                <?php foreach ($messages as $message): ?>
-                    <p><?= htmlspecialchars($message) ?></p>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-
-        <form method="post">
-            <label for="host">DB Host</label>
-            <input id="host" name="host" value="<?= htmlspecialchars($input['host']) ?>" required>
-
-            <label for="port">DB Port</label>
-            <input id="port" name="port" value="<?= htmlspecialchars($input['port']) ?>" required>
-
-            <label for="database">DB Name</label>
-            <input id="database" name="database" value="<?= htmlspecialchars($input['database']) ?>" required>
-
-            <label for="username">DB User</label>
-            <input id="username" name="username" value="<?= htmlspecialchars($input['username']) ?>" required>
-
-            <label for="password">DB Password</label>
-            <input id="password" type="password" name="password" value="<?= htmlspecialchars($input['password']) ?>" required>
-
-            <button type="submit">Kurulumu Başlat</button>
-        </form>
-    </div>
-</div>
-</body>
-</html>
+<!doctype html><html lang="tr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nettedersin Installer</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="bg-slate-950 text-slate-100"><div class="max-w-3xl mx-auto p-6">
+<h1 class="text-3xl font-bold">Nettedersin Kurulum Sihirbazı</h1>
+<p class="text-slate-400 mt-2">Terminal olmadan kurulum: DB oluştur, tabloları yaz, admin hesabını üret.</p>
+<?php if (!$uploadsOk): ?><p class="mt-3 p-3 rounded bg-amber-900 border border-amber-700">Uyarı: <code>/uploads</code> yazılabilir değil. Dosya yükleme için klasör izni verin.</p><?php endif; ?>
+<?php if ($status): ?><p class="mt-3 p-3 rounded <?= $status === 'success' ? 'bg-emerald-900 border border-emerald-700' : 'bg-red-900 border border-red-700' ?>"><?= htmlspecialchars($message) ?></p><?php endif; ?>
+<form method="post" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-900 border border-slate-800 p-4 rounded-xl">
+<?php foreach ($input as $k => $v): ?>
+  <div class="<?= in_array($k,['base_url','admin_name','admin_email','admin_password'],true) ? 'md:col-span-2' : '' ?>">
+    <label class="text-sm text-slate-300"><?= htmlspecialchars($k) ?></label>
+    <input name="<?= htmlspecialchars($k) ?>" value="<?= htmlspecialchars($v) ?>" class="mt-1 w-full p-2 rounded bg-slate-800 border border-slate-700" <?= $k === 'admin_password' ? 'type="password"' : '' ?> required>
+  </div>
+<?php endforeach; ?>
+<button class="md:col-span-2 p-3 bg-blue-600 rounded font-semibold">Kurulumu Başlat</button>
+</form></div></body></html>
