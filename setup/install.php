@@ -20,6 +20,32 @@ function splitSql(string $sql): array {
     return array_values(array_filter(array_map('trim', explode(';', (string)$clean))));
 }
 
+
+function hasColumn(PDO $pdo, string $dbName, string $table, string $column): bool {
+    $q = $pdo->prepare('SELECT COUNT(*) c FROM information_schema.columns WHERE table_schema=:db AND table_name=:t AND column_name=:c');
+    $q->execute(['db'=>$dbName,'t'=>$table,'c'=>$column]);
+    return ((int)$q->fetchColumn()) > 0;
+}
+
+function ensureCompatColumns(PDO $pdo, string $dbName): void {
+    $patches = [
+        ['users', "ADD COLUMN role ENUM('student','teacher','admin') NOT NULL DEFAULT 'student'"],
+        ['users', "ADD COLUMN status ENUM('active','frozen') NOT NULL DEFAULT 'active'"],
+        ['users', "ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"],
+        ['users', "ADD COLUMN updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP"],
+        ['courses', "ADD COLUMN status ENUM('draft','review','published') DEFAULT 'draft'"],
+    ];
+
+    foreach ($patches as [$table, $ddl]) {
+        if (strpos($ddl, 'ADD COLUMN ') !== false) {
+            $col = trim(explode(' ', str_replace('ADD COLUMN ', '', $ddl), 2)[0], '`');
+            if (!hasColumn($pdo, $dbName, $table, $col)) {
+                $pdo->exec("ALTER TABLE `{$table}` {$ddl}");
+            }
+        }
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($defaults as $k => $v) { $input[$k] = trim((string)($_POST[$k] ?? '')); }
 
@@ -31,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->exec("USE `{$dbName}`");
 
         foreach (splitSql((string)file_get_contents(__DIR__ . '/schema.sql')) as $stmt) { $pdo->exec($stmt); }
+        ensureCompatColumns($pdo, $dbName);
         foreach (splitSql((string)file_get_contents(__DIR__ . '/seed.sql')) as $stmt) { $pdo->exec($stmt); }
 
         $hash = password_hash($input['admin_password'], PASSWORD_BCRYPT);
