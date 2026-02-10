@@ -134,3 +134,8 @@ Bu sürüm shared hosting kısıtlarına göre tasarlandı:
 - Node/Yarn/Composer build zorunluluğu yok
 - Terminal zorunluluğu yok
 - Web installer ile kurulum tamamlanır
+
+## Hosting Uyumluluğu Notu (FK Hatası İçin)
+- Bazı shared hosting MySQL/MariaDB kurulumlarında `errno:150` yabancı anahtar hatası alınabiliyor.
+- Bu yüzden şema, **uyumluluk için FK bağımlılığı olmadan** ve index odaklı tasarlandı.
+- Uygulama tarafında ilişkisel doğrulama Repository/servis katmanında korunur.
