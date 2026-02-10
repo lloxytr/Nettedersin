@@ -1,21 +1,21 @@
 <?php
-require __DIR__ . '/../partials/data.php';
-require __DIR__ . '/../partials/components.php';
+require __DIR__ . '/../partials/page-shell.php';
 
 $pageTitle = 'Öğretmen Paneli | Nettedersin';
-$pageDescription = 'İçerik üretimi, test yönetimi ve öğrenci performans takibi.';
+$pageDescription = 'İçerik üretimi ve öğrenci analizi';
 
 ob_start();
-?>
-<section class="hero small">
-    <h1>Öğretmen Paneli</h1>
-    <p>Video yükleme, soru bankası, yayın planlama ve öğrenci analitiği paneli.</p>
-</section>
-<section class="grid three">
-    <?php foreach ($teacherFeatures as $group) {
-        renderFeatureCard($group);
-    } ?>
-</section>
-<?php
+renderPanelPage(
+    'Öğretmen Stüdyosu',
+    'Yeni ders yayınla, test hazırla, öğrenci performansını canlı takip et.',
+    Repository::getDashboardMetrics('ogretmen'),
+    $teacherFeatures,
+    [
+        ['href' => '/pages/ogretmen/icerik.php', 'label' => 'İçerik Yönetimi'],
+        ['href' => '/pages/ogretmen/sinav.php', 'label' => 'Sınavlar'],
+        ['href' => '/pages/ogretmen/analitik.php', 'label' => 'Analitik'],
+        ['href' => '/pages/ogretmen/iletisim.php', 'label' => 'İletişim'],
+    ]
+);
 $content = ob_get_clean();
 require __DIR__ . '/../partials/layout.php';

@@ -1,41 +1,66 @@
-# Nettedersin (PHP Sürümü)
+# Nettedersin (PHP - Markahost Uyumlu, Tam Kapsam İskelet)
 
-Bu proje, **Markahost Eco Linux (PHP hosting)** üzerinde doğrudan çalışacak şekilde hazırlanmış online eğitim platformu başlangıç arayüzüdür.
+Bu proje, Markahost Eco Linux (PHP hosting) için hazırlanmış **premium + hafif dark** görünümlü online eğitim platformu iskeletidir.
 
-## Neden PHP'ye Geçildi?
-Önceki sürüm Next.js tabanlıydı. Siz hosting tarafında PHP istediğiniz için altyapı tamamen PHP'ye taşındı.
+## Veritabanı Bilgileri
+- DB Name: `nettepfg_db`
+- DB User: `nettepfg_user`
+- DB Pass: `Sifre1234.`
 
-## Sayfalar
-- `index.php` → Ana sayfa (premium landing + tüm modül özeti)
-- `pages/ogrenci.php` → Öğrenci paneli demo
-- `pages/ogretmen.php` → Öğretmen paneli demo
-- `pages/admin.php` → Admin paneli demo
+Bu bilgiler `config/database.php` içinde varsayılan olarak tanımlı.
 
-## Ortak Yapı
-- `partials/layout.php` → Ortak HTML iskeleti + navbar
-- `partials/data.php` → Öğrenci/öğretmen/admin özellik listeleri
-- `partials/components.php` → Kart render yardımcı fonksiyonu
-- `public/style.css` → Tasarım sistemi ve responsive stil
+## Mimari
+- `index.php`: Ana landing + premium pazarlama akışı
+- `pages/`: Öğrenci / öğretmen / admin dashboard ve alt modüller
+- `partials/`: Ortak layout, component renderer, veri listeleri, page shell
+- `lib/`: DB bağlantısı (`Database.php`) + veri servisleri (`Repository.php`)
+- `setup/`: `schema.sql` ve `seed.sql`
+- `public/style.css`: hafif dark premium tasarım sistemi
 
-## Çalıştırma (Lokal)
-PHP kuruluysa:
+## Modüller
+### Öğrenci
+- Dersler (video + PDF + yorum/soru)
+- Test/deneme + yanlış defteri
+- Motivasyon + hedef + rozet
+- Satın alma + paketler
 
+### Öğretmen
+- İçerik yönetimi
+- Sınav/test yönetimi
+- Öğrenci analitiği
+- İletişim ve duyuru
+
+### Admin
+- Kullanıcı/rol
+- Ödeme/paket
+- Raporlama
+- Güvenlik
+
+## Kurulum
+### 1) Lokal sunucu
 ```bash
 php -S 127.0.0.1:8000
 ```
 
-Ardından:
-- `http://127.0.0.1:8000/index.php`
+### 2) Veritabanı kur
+MySQL'de sırayla çalıştır:
+```sql
+SOURCE setup/schema.sql;
+SOURCE setup/seed.sql;
+```
+
+### 3) Aç
+`http://127.0.0.1:8000/index.php`
 
 ## Hosting'e Yükleme
-1. Tüm dosyaları public_html altına yükleyin.
-2. `index.php` kökte kalmalı.
-3. `/pages` ve `/partials` klasörlerini koruyun.
-4. CSS için `/public/style.css` yolunun bozulmadığından emin olun.
+1. Tüm dosyaları `public_html` altına yükle.
+2. `index.php` kökte kalsın.
+3. `pages/`, `partials/`, `lib/`, `setup/`, `public/` klasörlerini koru.
+4. Gerekirse `config/database.php` içindeki bilgileri hosting paneline göre güncelle.
 
-## Sonraki Teknik Adımlar (Üretim)
-1. MySQL veritabanı + PDO katmanı
-2. Giriş sistemi (öğrenci/öğretmen/admin rolleri)
-3. Video/PDF içerik yönetimi paneli
-4. Test motoru + puanlama
-5. Ödeme entegrasyonu (İyzico / PayTR)
+## Sonraki Ürünleştirme Adımı
+- Gerçek auth/login/register
+- CRUD ekranları (ders, test, paket)
+- Ödeme webhookları (İyzico/PayTR)
+- Bildirim queue sistemi
+- SEO sayfaları + sitemap + canonical

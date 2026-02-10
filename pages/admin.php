@@ -1,21 +1,21 @@
 <?php
-require __DIR__ . '/../partials/data.php';
-require __DIR__ . '/../partials/components.php';
+require __DIR__ . '/../partials/page-shell.php';
 
 $pageTitle = 'Admin Paneli | Nettedersin';
-$pageDescription = 'Kullanıcı, ödeme, içerik ve güvenlik yönetimi merkezi.';
+$pageDescription = 'Operasyon, ödeme, güvenlik ve raporlama merkezi';
 
 ob_start();
-?>
-<section class="hero small">
-    <h1>Admin Paneli</h1>
-    <p>Rol yönetimi, ödeme süreçleri, raporlama ve güvenlik kontrolleri.</p>
-</section>
-<section class="grid three">
-    <?php foreach ($adminFeatures as $group) {
-        renderFeatureCard($group);
-    } ?>
-</section>
-<?php
+renderPanelPage(
+    'Admin Control Center',
+    'Kullanıcı, içerik, ödeme ve güvenlik operasyonlarını tek merkezden yönetin.',
+    Repository::getDashboardMetrics('admin'),
+    $adminFeatures,
+    [
+        ['href' => '/pages/admin/kullanicilar.php', 'label' => 'Kullanıcılar'],
+        ['href' => '/pages/admin/odeme.php', 'label' => 'Ödeme'],
+        ['href' => '/pages/admin/rapor.php', 'label' => 'Raporlar'],
+        ['href' => '/pages/admin/guvenlik.php', 'label' => 'Güvenlik'],
+    ]
+);
 $content = ob_get_clean();
 require __DIR__ . '/../partials/layout.php';
