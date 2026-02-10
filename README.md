@@ -3,9 +3,9 @@
 Bu proje, Markahost Eco Linux (PHP hosting) için hazırlanmış **premium + hafif dark** görünümlü online eğitim platformu iskeletidir.
 
 ## Veritabanı Bilgileri
-- DB Name: `nettepfg_db`
-- DB User: `nettepfg_user`
-- DB Pass: `Sifre1234.`
+- DB Name: `n`
+- DB User: `ne`
+- DB Pass: `Sif`
 
 Bu bilgiler `config/database.php` içinde varsayılan olarak tanımlı.
 
