@@ -114,13 +114,12 @@ ob_start();
 </section>
 
 <section class="section container">
-    <h2>Veritabanı Kurulum Bilgisi</h2>
+    <h2>Kurulum (Terminal Yoksa)</h2>
     <div class="card">
         <ul>
-            <li>DB: <strong>nettepfg_db</strong></li>
-            <li>Kullanıcı: <strong>nettepfg_user</strong></li>
-            <li>Şifre: <strong>Sifre1234.</strong></li>
-            <li>Kurulum: <code>setup/schema.sql</code> ardından <code>setup/seed.sql</code> import edin.</li>
+            <li>Web kurulum sihirbazı: <code>/setup/install.php</code></li>
+            <li>Kurulum sonrası güvenlik için install.php erişimini kapatın.</li>
+            <li>Alternatif: phpMyAdmin ile <code>setup/schema.sql</code> ve <code>setup/seed.sql</code> import edin.</li>
         </ul>
     </div>
 </section>
